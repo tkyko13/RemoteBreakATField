@@ -5,7 +5,10 @@ let peer = null;
 let existingCall = null;
 
 navigator.mediaDevices
-  .getUserMedia({ video: true, audio: false })
+  .getUserMedia({
+    video: { width: 640, height: 480 },
+    audio: false,
+  })
   .then(function (stream) {
     // Success
     $("#my-video").get(0).srcObject = stream;
@@ -82,23 +85,33 @@ function setupEndCallUI() {
 
   // input source
   const myVideo = $("#my-video").get(0);
-  const thirVideo = $("#their-video").get(0);
+
   // output source
   const destCanvas = $("#my-canvas").get(0);
 
+  const theirVideo = $("#their-video").get(0);
+  const destTheirCnv = $("#their-canvas").get(0);
+
   $("#btn").get(0).onclick = async () => {
-    console.log("a");
     // THESE LINES ARE REQUIRED!
-    myVideo.width = thirVideo.width = destCanvas.width = myVideo.videoWidth;
-    myVideo.height = thirVideo.height = destCanvas.height = myVideo.videoHeight;
+    myVideo.width = theirVideo.width = destCanvas.width = destTheirCnv.width =
+      myVideo.videoWidth;
+    myVideo.height = theirVideo.height = destCanvas.height = destTheirCnv.height =
+      myVideo.videoHeight;
 
     const destCtx = destCanvas.getContext("2d");
+    const destTheirCtx = destTheirCnv.getContext("2d");
 
     // to remove background, need another canvas
     const tempCnv = document.createElement("canvas");
     tempCnv.width = myVideo.videoWidth;
     tempCnv.height = myVideo.videoHeight;
     const tempCtx = tempCnv.getContext("2d");
+
+    const tempTheirCnv = document.createElement("canvas");
+    tempTheirCnv.width = theirVideo.videoWidth;
+    tempTheirCnv.height = theirVideo.videoHeight;
+    const tempTheirCtx = tempTheirCnv.getContext("2d");
 
     (async function loop() {
       requestAnimationFrame(loop);
@@ -108,9 +121,11 @@ function setupEndCallUI() {
       const mask = bodyPix.toMask(segmentation);
       tempCtx.putImageData(mask, 0, 0);
 
-      const segmentation2 = await net.segmentPerson(thirVideo);
+      console.log(segmentation);
+
+      const segmentation2 = await net.segmentPerson(theirVideo);
       const mask2 = bodyPix.toMask(segmentation2);
-      tempCtx.putImageData(mask2, 0, 0);
+      tempTheirCtx.putImageData(mask2, 0, 0);
 
       // draw original
       destCtx.drawImage(myVideo, 0, 0, destCanvas.width, destCanvas.height);
@@ -119,6 +134,25 @@ function setupEndCallUI() {
       destCtx.globalCompositeOperation = "destination-out";
       destCtx.drawImage(tempCnv, 0, 0, destCanvas.width, destCanvas.height);
       destCtx.restore();
+
+      destTheirCtx.drawImage(
+        theirVideo,
+        0,
+        0,
+        destTheirCnv.width,
+        destTheirCnv.height
+      );
+      // then overwrap, masked area will be removed
+      destTheirCtx.save();
+      destTheirCtx.globalCompositeOperation = "destination-out";
+      destTheirCtx.drawImage(
+        tempTheirCnv,
+        0,
+        0,
+        destTheirCnv.width,
+        destTheirCnv.height
+      );
+      destTheirCtx.restore();
     })();
   };
 })();
