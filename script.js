@@ -82,11 +82,9 @@ function setupEndCallUI() {
 // ------ tensorflow
 (async () => {
   const net = await bodyPix.load();
+  const net2 = await bodyPix.load();
 
-  // input source
   const myVideo = $("#my-video").get(0);
-
-  // output source
   const destCanvas = $("#my-canvas").get(0);
 
   const theirVideo = $("#their-video").get(0);
@@ -121,12 +119,6 @@ function setupEndCallUI() {
       const mask = bodyPix.toMask(segmentation);
       tempCtx.putImageData(mask, 0, 0);
 
-      console.log(segmentation);
-
-      const segmentation2 = await net.segmentPerson(theirVideo);
-      const mask2 = bodyPix.toMask(segmentation2);
-      tempTheirCtx.putImageData(mask2, 0, 0);
-
       // draw original
       destCtx.drawImage(myVideo, 0, 0, destCanvas.width, destCanvas.height);
       // then overwrap, masked area will be removed
@@ -134,6 +126,10 @@ function setupEndCallUI() {
       destCtx.globalCompositeOperation = "destination-out";
       destCtx.drawImage(tempCnv, 0, 0, destCanvas.width, destCanvas.height);
       destCtx.restore();
+
+      const segmentation2 = await net2.segmentPerson(theirVideo);
+      const mask2 = bodyPix.toMask(segmentation2);
+      tempTheirCtx.putImageData(mask2, 0, 0);
 
       destTheirCtx.drawImage(
         theirVideo,
