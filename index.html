@@ -1,61 +1,101 @@
 <!DOCTYPE html>
-<html>
-  <head lang="ja">
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.0"></script>
+<html lang="en">
 
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>SkyWay JS SDK Tutorial</title>
-    <link rel="stylesheet" href="style.css" />
-    <style>
-      canvas {
-        /* margin: 0; */
-        /* border: 1px; */
-        /* width: 100%;
-        height: 100%; */
-        position: absolute;
-        pointer-events: none;
-      }
-    </style>
-  </head>
-  <div class="pure-g">
-    <!-- Video area -->
-    <div class="pure-u-2-3" id="video-container">
-      <video id="their-video" autoplay></video>
-      <video id="my-video" muted="true" autoplay></video>
-    </div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>リモート人類補完計画</title>
+</head>
 
-    <!-- Steps -->
-    <div class="pure-u-1-3">
-      <h2>SkyWay Video Chat</h2>
-
-      <p>Your id: <span id="my-id">...</span></p>
-      <p>Share this id with others so they can call you.</p>
-      <h3>Make a call</h3>
-      <form id="make-call" class="pure-form">
-        <input type="text" placeholder="Call user id..." id="callto-id" />
-        <button href="#" class="pure-button pure-button-success" type="submit">
-          Call
-        </button>
-      </form>
-      <form id="end-call" class="pure-form">
-        <p>Currently in call with <span id="their-id">...</span></p>
-        <button href="#" class="pure-button pure-button-success" type="submit">
-          End Call
-        </button>
-      </form>
-    </div>
-    <canvas id="my-canvas"></canvas>
-    <canvas id="their-canvas"></canvas>
-    <button id="btn">push</button>
+<body>
+  <div id="app">
+    <video ref="video" width="320" height="240" autoplay></video>
+    <div id="container"></div>
+    <p>
+      <input v-model="skyway_id" placeholder="input id">
+      <button v-on:click="clickBtn"></button>
+    </p>
   </div>
-  <script
-    type="text/javascript"
-    src="https://code.jquery.com/jquery-3.2.1.min.js"
-  ></script>
-  <script
-    type="text/javascript"
-    src="https://cdn.webrtc.ecl.ntt.com/skyway-latest.js"
-  ></script>
-  <script type="text/javascript" src="script.js"></script>
+  <script src="https://cdn.webrtc.ecl.ntt.com/skyway-latest.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.2.0/p5.min.js"></script>
+  <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
+  <script src="https://unpkg.com/vue"></script>
+  <script>
+    let peer;
+    let segmentationImage;
+
+    const app = new Vue({
+      el: '#app',
+      data: {
+         video: {},
+         maskCanvas: {},
+         skyway_id:''
+      },
+      mounted: async function () {
+        this.maskCanvas = this.$refs.maskCanvas;
+
+        this.video = this.$refs.video;
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        this.video.srcObject = stream;
+        this.video.play();
+
+        // navigator.mediaDevices.getUserMedia({ video: true })
+        // .then(async (stream) => {
+        //   this.video.srcObject = stream;
+        //   this.video.play();
+        // })
+        // .catch(err => {
+        //   console.log(err);
+        // });
+
+        // setup skyway
+        peer = new Peer({
+          key: '51af5899-2541-43dc-acff-95976dccb605',
+          debug: 3,
+        });
+        peer.on("open", () => {
+          console.log('id: ' + peer.id);
+        });
+
+        // setup view
+        const cnv = createCanvas(640, 480);
+        cnv.parent("container");
+
+        // 輪郭抽出開始
+        let uNet = await ml5.uNet('face');
+        this.video.addEventListener('loadeddata', (e) => {
+          uNet.segment(this.video, gotResult);
+        });
+        function gotResult(error, result) {
+          // if there's an error return it
+          if (error) {
+            console.error(error);
+            return;
+          }
+          // set the result to the global segmentation variable
+          // segmentationImage = result;
+          image(result.backgroundMask, 0, 0, width, height);
+          
+          // Continue asking for a segmentation image
+          uNet.segment(app.video, gotResult);
+        }
+        
+      },
+      methods: {
+        clickBtn: async function() {
+          const call = peer.call(this.skyway_id, );
+          call.on("stream", stream => {
+            console.log('on stream in Child!');
+            // 親から来るストリームは重なっている映像
+            // image(stream, 0, 0, width, height);
+            // viewCnv.canvas.getContext('2d').drawImage(stream, 0, 0);
+            console.log(stream);
+          });
+        }
+      }
+    })
+  </script>
+
+</body>
+
 </html>
